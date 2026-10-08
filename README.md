@@ -100,7 +100,7 @@ next begins.
 | 1     | Project foundation (structure, docs)   | ✅ Complete |
 | 2     | FastAPI backend + `/api/health`        | ✅ Complete |
 | 3     | Demo provider data + provider API      | ✅ Complete |
-| 4     | Deterministic recommendation engine    | ⬜ Not started |
+| 4     | Deterministic recommendation engine    | ✅ Complete |
 | 5     | MongoDB via Docker + seed script       | ⬜ Not started |
 | 6     | React + Vite frontend                  | ⬜ Not started |
 | 7     | AI natural-language parsing            | ⬜ Not started |
