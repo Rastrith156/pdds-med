@@ -24,12 +24,16 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
-    # --- MongoDB (wired up in Stage 5) ---
+    # --- MongoDB (Stage 5) ---
+    # "mongodb" (default) = real MongoDB via Docker; "memory" = in-memory
+    # demo dataset, ONLY for keeping unit tests independent of the database.
+    database_mode: str = "mongodb"
     mongodb_uri: str = "mongodb://localhost:27017"
     database_name: str = "medaccess"
 
-    # --- Authentication / JWT (wired up in Stage 5) ---
-    # Placeholder only; replace via environment variable in real deployments.
+    # --- Authentication / JWT (reserved for a later stage) ---
+    # Environment placeholders only — no auth is implemented yet. Replace the
+    # secret via environment variable in real deployments; never commit secrets.
     secret_key: str = "insecure-dev-only-change-me-via-env"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30

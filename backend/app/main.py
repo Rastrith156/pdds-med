@@ -1,6 +1,7 @@
 """MediAccess AI — FastAPI application entrypoint.
 
 Run locally:
+    docker compose up -d mongodb          # MongoDB (Stage 5)
     uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 Swagger UI:    http://127.0.0.1:8000/docs
@@ -8,13 +9,35 @@ ReDoc:         http://127.0.0.1:8000/redoc
 Health check:  http://127.0.0.1:8000/api/health
 """
 
+from __future__ import annotations
+
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# The vendor-neutral AI package (ai/) lives at the repository root so it can
+# be reused outside FastAPI; make it importable wherever the app is started.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from app import database
 from app.config import get_settings
-from app.routers import health, providers, recommendations
+from app.routers import ai_search, health, providers, recommendations
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """Connect MongoDB on startup (loud failure) and close it on shutdown."""
+    await database.connect_database()
+    yield
+    await database.disconnect_database()
+
 
 app = FastAPI(
     title="MediAccess AI",
@@ -29,6 +52,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -42,6 +66,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(providers.router)
 app.include_router(recommendations.router)
+app.include_router(ai_search.router)
 
 
 @app.get("/", include_in_schema=False)

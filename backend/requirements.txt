@@ -4,3 +4,6 @@ fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.30.0,<1.0.0
 pydantic>=2.9.0,<3.0.0
 pydantic-settings>=2.5.0,<3.0.0
+# MongoDB async driver: official PyMongo Async API (AsyncMongoClient).
+# Chosen over Motor, which is in maintenance mode. Requires pymongo >= 4.10.
+pymongo>=4.10.0,<5.0.0

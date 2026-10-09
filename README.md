@@ -41,22 +41,26 @@ fragmented sources. MediAccess AI provides:
 
 ## 🏗️ Architecture
 
-```
-┌────────────────────┐        ┌─────────────────────────┐
-│  React + Vite UI   │ ─────► │   FastAPI Backend       │
-│  (frontend/)       │  REST  │   (backend/app)         │
-└────────────────────┘        │                         │
-                              │  /api/health            │
-                              │  /api/providers         │
-                              │  /api/recommendations   │
-                              └────────┬────────────────┘
+```text
+┌────────────────────┐        ┌───────────────────────────────┐
+│  React + Vite UI   │ ─────► │   FastAPI Backend             │
+│  (frontend/)       │  REST  │   (backend/app)               │
+└────────────────────┘        │                               │
+                              │  GET  /api/health             │
+                              │  GET  /api/health/database    │
+                              │  GET  /api/providers          │
+                              │  GET  /api/providers/{id}     │
+                              │  POST /api/recommendations    │
+                              │  POST /api/ai/search          │
+                              └────────┬──────────────────────┘
                                        │
               ┌────────────────────────┼───────────────────────┐
               ▼                        ▼                       ▼
    ┌──────────────────┐    ┌─────────────────────┐   ┌────────────────────┐
-   │ Recommendation   │    │ AI Parser           │   │ MongoDB (Docker)   │
-   │ engine           │    │ (ai/) — LLM with    │   │ (database/)        │
-   │ deterministic    │    │ fallback parser     │   │ users, providers   │
+   │ Recommendation   │    │ AI parsing (ai/)    │   │ MongoDB 8          │
+   │ engine           │    │ safety guardrail →  │   │ (Docker)           │
+   │ (deterministic)  │    │ optional LLM →      │   │ medaccess.providers│
+   │                  │    │ regex fallback      │   │ 36 demo docs       │
    └──────────────────┘    └─────────────────────┘   └────────────────────┘
 ```
 
@@ -66,11 +70,11 @@ fragmented sources. MediAccess AI provides:
 |-----------------|-----------------------------------------------------|
 | `frontend/`     | React + Vite + Tailwind CSS single-page application |
 | `backend/`      | FastAPI application (API, services, schemas, utils) |
-| `ai/`           | LLM provider abstraction and navigation-query parser|
-| `database/`     | Seed scripts and database helpers                   |
-| `tests/`        | Cross-cutting tests (backend unit tests live here)  |
-| `docs/`         | Architecture and process documentation              |
-| `deployment/`   | Docker / CI/CD / GCP deployment configuration       |
+| `ai/`           | LLM provider abstraction + navigation-query parser  |
+| `database/`     | Idempotent MongoDB seed script                      |
+| `tests/`        | Cross-cutting tests (unit, AI regression, MongoDB integration) |
+| `docs/`         | Project report, abstract, architecture, DB, algorithm, API, testing docs |
+| `deployment/`   | Reserved for deployment configuration (empty)       |
 
 ---
 
@@ -78,22 +82,24 @@ fragmented sources. MediAccess AI provides:
 
 | Layer          | Technology                                        |
 |----------------|---------------------------------------------------|
-| Frontend       | React, Vite, Tailwind CSS                         |
-| Backend        | Python, FastAPI, Pydantic, Uvicorn                |
-| Database       | MongoDB (running via Docker)                      |
-| AI             | LLM API behind a provider abstraction + fallback  |
-| Authentication | JWT (JSON Web Tokens)                             |
-| Containerization | Docker + Docker Compose                         |
-| CI/CD          | Jenkins                                           |
-| Code quality   | SonarQube                                         |
-| Deployment     | Google Cloud Platform (GCP)                       |
+| Frontend       | React 19, Vite 7, Tailwind CSS 4, React Router    |
+| Backend        | Python 3.12+, FastAPI, Pydantic v2, Uvicorn       |
+| Database       | MongoDB 8 in Docker (PyMongo async client)        |
+| AI             | OpenAI-compatible LLM API (optional) + deterministic fallback parser |
+| Testing        | pytest (71 tests: unit + AI regression + MongoDB integration) |
+| Containerization | Docker + Docker Compose (MongoDB service)       |
+
+> **Not implemented (honestly disclosed):** user authentication/JWT, appointment
+> booking, CI/CD (Jenkins/GitHub Actions), SonarQube and cloud deployment are
+> *not* part of this repository. See
+> [`docs/MediAccess_AI_Project_Report.md`](docs/MediAccess_AI_Project_Report.md)
+> §21 for details.
 
 ---
 
 ## 📦 Development Status
 
-**Phase 1 — in progress.** Incremental build; each stage is verified before the
-next begins.
+**All planned stages are complete.**
 
 | Stage | Description                            | Status      |
 |-------|----------------------------------------|-------------|
@@ -101,33 +107,77 @@ next begins.
 | 2     | FastAPI backend + `/api/health`        | ✅ Complete |
 | 3     | Demo provider data + provider API      | ✅ Complete |
 | 4     | Deterministic recommendation engine    | ✅ Complete |
-| 5     | MongoDB via Docker + seed script       | ⬜ Not started |
-| 6     | React + Vite frontend                  | ⬜ Not started |
-| 7     | AI natural-language parsing            | ⬜ Not started |
-| 8     | Final verification                     | ⬜ Not started |
+| 5     | MongoDB via Docker + seed script       | ✅ Complete |
+| 6     | React + Vite frontend                  | ✅ Complete |
+| 7     | AI natural-language parsing + guardrail| ✅ Complete |
+| 8     | Final verification + submission docs   | ✅ Complete |
+
+Verification: **71/71 automated tests pass** (including live MongoDB
+integration), frontend production build succeeds, and the running system was
+probed end-to-end (filters, ranking, AI search, safety refusal, DB failure →
+503 → recovery, seed idempotency). Details: [`docs/testing.md`](docs/testing.md).
 
 ---
 
-## 🚀 Getting Started (after Stage 2+)
+## 🚀 Getting Started (Windows)
+
+**Prerequisites:** Python 3.12+, Node.js 18+, Docker Desktop, Git.
 
 ```powershell
 # 1. Clone and enter the project
 git clone https://github.com/Rastrith156/medaccess.git
 cd medaccess
 
-# 2. Create your local environment file (never commit it)
+# 2. Local environment file (never commit it)
 Copy-Item .env.example .env
 
-# 3. Backend (Stage 2+)
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-# Open http://127.0.0.1:8000/docs for Swagger UI
+# 3. Database — MongoDB in Docker + idempotent seed (36 demo providers)
+docker compose up -d mongodb
+backend\.venv\Scripts\python.exe database\seed.py
+# (First time only: create the venv —
+#  cd backend; python -m venv .venv; .\.venv\Scripts\Activate.ps1;
+#  pip install -r requirements.txt -r requirements-dev.txt; cd ..)
+
+# 4. Backend → http://127.0.0.1:8000  (Swagger UI at /docs)
+$env:DATABASE_MODE = 'mongodb'
+& .\backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend `
+  --reload --host 127.0.0.1 --port 8000
+
+# 5. Frontend (new terminal) → http://127.0.0.1:5173
+cd frontend
+npm install
+npm run dev
 ```
 
-Further run instructions will be added as each stage lands.
+**Run the tests** (from the repository root):
+
+```powershell
+# Unit tests only — no database required (memory mode)
+& .\backend\.venv\Scripts\python.exe -m pytest tests/ -q
+
+# Full suite including MongoDB integration — 71 tests expected
+$env:RUN_MONGO_INTEGRATION = '1'
+$env:DATABASE_MODE = 'mongodb'
+& .\backend\.venv\Scripts\python.exe -m pytest tests/ -q
+```
+
+> Tip: if your shell already exports `DATABASE_MODE=memory`, set it back to
+> `mongodb` before starting the server or running integration tests.
+
+---
+
+## 📚 Documentation
+
+| Document | Contents |
+|----------|----------|
+| [`docs/MediAccess_AI_Project_Report.md`](docs/MediAccess_AI_Project_Report.md) | Full 26-section project report (incl. honest "not implemented" section) |
+| [`docs/abstract.md`](docs/abstract.md) | Submission abstract |
+| [`docs/architecture-diagram.md`](docs/architecture-diagram.md) | Mermaid diagrams: system context, backend layers, AI pipeline, deployment |
+| [`docs/database-design.md`](docs/database-design.md) | MongoDB schema, indexes, dual modes, seeding |
+| [`docs/recommendation-algorithm.md`](docs/recommendation-algorithm.md) | Scoring formula, worked example, tie-breaking |
+| [`docs/api-reference.md`](docs/api-reference.md) | All 6 endpoints with example requests/responses |
+| [`docs/testing.md`](docs/testing.md) | Test strategy, commands, verified results |
+| [`backend/README.md`](backend/README.md) | Backend-specific run/API notes |
 
 ---
 

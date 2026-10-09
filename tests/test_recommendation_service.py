@@ -9,15 +9,11 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.main import app
 from app.schemas.provider import Provider
 from app.schemas.recommendation import RecommendationRequest
 from app.services import recommendation_service as rs
-
-client = TestClient(app)
 
 _ALL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -62,7 +58,7 @@ def score_one(provider: Provider, **kwargs):
 
 # ---------------------------------------------------------------- components
 
-def test_match_score_always_between_0_and_100() -> None:
+def test_match_score_always_between_0_and_100(client) -> None:
     param_sets = [
         {},
         {"budget": 1000},
@@ -81,13 +77,13 @@ def test_match_score_always_between_0_and_100() -> None:
             assert 0 <= score <= 100, f"score {score} out of range for {kwargs}"
 
 
-def test_within_budget_outranks_over_budget() -> None:
+def test_within_budget_outranks_over_budget(client) -> None:
     within = make_provider("t-in", fee=500)
     over = make_provider("t-over", fee=1200)
     assert score_one(within, budget=700).match_score > score_one(over, budget=700).match_score
 
 
-def test_lower_distance_outranks_higher_distance() -> None:
+def test_lower_distance_outranks_higher_distance(client) -> None:
     near = make_provider("t-near", lat=12.9716, lng=77.5946)
     far = make_provider("t-far", lat=15.8497, lng=74.4977)  # ~500 km from Bangalore
     kwargs = {"latitude": 12.9716, "longitude": 77.5946}
@@ -99,7 +95,7 @@ def test_lower_distance_outranks_higher_distance() -> None:
     assert near_item.match_score > far_item.match_score
 
 
-def test_available_today_outranks_unavailable_when_requested() -> None:
+def test_available_today_outranks_unavailable_when_requested(client) -> None:
     monday = make_provider("t-mon", days=["Monday"])
     wednesday = make_provider("t-wed", days=["Wednesday"])
     kwargs = {"available_today": True, "today": "Wednesday"}
@@ -108,7 +104,7 @@ def test_available_today_outranks_unavailable_when_requested() -> None:
     assert score_one(wednesday, **kwargs).match_score > score_one(monday, **kwargs).match_score
 
 
-def test_rating_score_formula_and_ordering() -> None:
+def test_rating_score_formula_and_ordering(client) -> None:
     assert rs.rating_score(5.0) == pytest.approx(100)
     assert rs.rating_score(4.5) == pytest.approx(90)
     assert rs.rating_score(4.0) == pytest.approx(80)
@@ -117,7 +113,7 @@ def test_rating_score_formula_and_ordering() -> None:
     assert scores == sorted(scores)
 
 
-def test_language_match_scores_higher() -> None:
+def test_language_match_scores_higher(client) -> None:
     speaks = make_provider("t-lang-yes", languages=["English", "kannada"])
     silent = make_provider("t-lang-no", languages=["English", "Tamil"])
     kwargs = {"language": "Kannada"}
@@ -126,23 +122,23 @@ def test_language_match_scores_higher() -> None:
     assert score_one(speaks, **kwargs).match_score > score_one(silent, **kwargs).match_score
 
 
-def test_missing_budget_gives_neutral_score() -> None:
+def test_missing_budget_gives_neutral_score(client) -> None:
     assert rs.budget_score(9999, None) == rs.NEUTRAL_SCORE == 50
 
 
-def test_missing_location_gives_neutral_distance_and_no_invented_value() -> None:
+def test_missing_location_gives_neutral_distance_and_no_invented_value(client) -> None:
     item = score_one(make_provider())
     assert item.score_breakdown.distance == 50
     assert item.distance_km is None
     assert "Distance not calculated (no location provided)" in item.reasons
 
 
-def test_missing_language_gives_neutral_score() -> None:
+def test_missing_language_gives_neutral_score(client) -> None:
     assert rs.language_score(["English"], None) == rs.NEUTRAL_SCORE == 50
     assert rs.language_score(["English"], "   ") == rs.NEUTRAL_SCORE
 
 
-def test_final_score_uses_exact_weights() -> None:
+def test_final_score_uses_exact_weights(client) -> None:
     # Integral components: budget 100, distance 100, availability 100,
     # rating 4.0 -> 80, language 100.
     item = score_one(
@@ -162,13 +158,13 @@ def test_final_score_uses_exact_weights() -> None:
 
 # ------------------------------------------------------------------ ranking
 
-def test_results_sorted_highest_first() -> None:
+def test_results_sorted_highest_first(client) -> None:
     providers = [make_provider(f"t-s{i}", fee=300 + i * 200, rating=3.5 + i * 0.3) for i in range(6)]
     scores = [item.match_score for item in rs.recommend_providers(providers)]
     assert scores == sorted(scores, reverse=True)
 
 
-def test_limit_respected() -> None:
+def test_limit_respected(client) -> None:
     providers = [make_provider(f"t-l{i}", rating=3.5 + (i % 5) * 0.3) for i in range(10)]
     full = rs.recommend_providers(providers, limit=10)
     limited = rs.recommend_providers(providers, limit=3)
@@ -177,11 +173,11 @@ def test_limit_respected() -> None:
     assert [i.provider.id for i in limited] == [i.provider.id for i in full[:3]]
 
 
-def test_empty_provider_list_returns_empty() -> None:
+def test_empty_provider_list_returns_empty(client) -> None:
     assert rs.recommend_providers([]) == []
 
 
-def test_no_matching_filters_returns_empty_response() -> None:
+def test_no_matching_filters_returns_empty_response(client) -> None:
     response = client.post(
         "/api/recommendations",
         json={"city": "Bangalore", "specialization": "Dermatology", "maximum_budget": 100},
@@ -190,13 +186,13 @@ def test_no_matching_filters_returns_empty_response() -> None:
     assert response.json() == {"count": 0, "recommendations": []}
 
 
-def test_budget_boundary_exact_and_slightly_over() -> None:
+def test_budget_boundary_exact_and_slightly_over(client) -> None:
     assert rs.budget_score(700, 700) == 100  # exactly at budget -> full score
     slightly_over = rs.budget_score(701, 700)
     assert 0 < slightly_over < 100
 
 
-def test_rating_boundary_values() -> None:
+def test_rating_boundary_values(client) -> None:
     assert rs.rating_score(5.0) == pytest.approx(100)
     assert rs.rating_score(0.0) == 0
     zero = score_one(make_provider("t-zero", rating=0.0))
@@ -205,7 +201,7 @@ def test_rating_boundary_values() -> None:
     assert five.match_score > zero.match_score
 
 
-def test_tie_break_ordering_is_deterministic() -> None:
+def test_tie_break_ordering_is_deterministic(client) -> None:
     high_rating = make_provider("t-003", fee=500, rating=4.8)  # wins on rating
     cheapest = make_provider("t-001", fee=400, rating=4.5)     # wins tie on fee
     a = make_provider("t-002", fee=500, rating=4.5)            # then id asc
@@ -217,7 +213,7 @@ def test_tie_break_ordering_is_deterministic() -> None:
     assert [i.provider.id for i in second] == expected  # same result, any order
 
 
-def test_haversine_known_distances() -> None:
+def test_haversine_known_distances(client) -> None:
     assert rs.haversine_km(12.9716, 77.5946, 12.9716, 77.5946) == 0
     bangalore_mysore = rs.haversine_km(12.9716, 77.5946, 12.2988, 76.6394)
     assert 100 <= bangalore_mysore <= 160  # real-world Bangalore <-> Mysore ~130 km
@@ -241,17 +237,17 @@ def test_haversine_known_distances() -> None:
         {"longitude": 77.5946},    # latitude missing
     ],
 )
-def test_invalid_request_values_rejected(payload: dict) -> None:
+def test_invalid_request_values_rejected(client, payload: dict) -> None:
     response = client.post("/api/recommendations", json=payload)
     assert response.status_code == 422
 
 
-def test_paired_coordinate_validation_in_schema() -> None:
+def test_paired_coordinate_validation_in_schema(client) -> None:
     with pytest.raises(ValidationError):
         RecommendationRequest(latitude=12.9716)
 
 
-def test_combined_recommendation_request() -> None:
+def test_combined_recommendation_request(client) -> None:
     payload = {
         "specialization": "Dermatology",
         "city": "Bangalore",
@@ -277,14 +273,14 @@ def test_combined_recommendation_request() -> None:
         assert isinstance(rec["reasons"], list) and rec["reasons"]
 
 
-def test_recommendations_without_hard_filters_still_return_results() -> None:
+def test_recommendations_without_hard_filters_still_return_results(client) -> None:
     response = client.post("/api/recommendations", json={"city": "Bangalore", "limit": 5})
     body = response.json()
     assert body["count"] > 0
     assert all(r["provider"]["city"] == "Bangalore" for r in body["recommendations"])
 
 
-def test_recommendations_with_coordinates_include_distance() -> None:
+def test_recommendations_with_coordinates_include_distance(client) -> None:
     payload = {
         "specialization": "Dermatology",
         "city": "Bangalore",

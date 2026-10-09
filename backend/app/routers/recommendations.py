@@ -6,8 +6,9 @@ Flow: router -> provider_service (hard filters) -> recommendation_service
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
+from app.database import DatabaseUnavailableError
 from app.schemas.recommendation import RecommendationRequest, RecommendationResponse
 from app.services import provider_service, recommendation_service
 
@@ -26,17 +27,20 @@ router = APIRouter(tags=["Recommendations"])
         "or gives treatment advice, and uses no LLM."
     ),
 )
-def create_recommendations(request: RecommendationRequest) -> RecommendationResponse:
-    """Filter providers, score them, sort by score, and return the top N."""
-    matching = provider_service.search_providers(
-        specialization=request.specialization,
-        city=request.city,
-        area=request.area,
-        maximum_budget=request.maximum_budget,
-        minimum_rating=request.minimum_rating,
-        language=request.language,
-        available_today=request.available_today,
-    )
+async def create_recommendations(request: RecommendationRequest) -> RecommendationResponse:
+    """Filter providers (MongoDB), score them deterministically, return top N."""
+    try:
+        matching = await provider_service.search_providers(
+            specialization=request.specialization,
+            city=request.city,
+            area=request.area,
+            maximum_budget=request.maximum_budget,
+            minimum_rating=request.minimum_rating,
+            language=request.language,
+            available_today=request.available_today,
+        )
+    except DatabaseUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     recommendations = recommendation_service.recommend_providers(
         matching,
         budget=request.maximum_budget,
