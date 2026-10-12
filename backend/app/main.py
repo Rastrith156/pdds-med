@@ -26,7 +26,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from app import database
 from app.config import get_settings
-from app.routers import ai_search, health, providers, recommendations
+from app.routers import ai_search, health, openproject, providers, recommendations
 
 settings = get_settings()
 
@@ -67,6 +67,7 @@ app.include_router(health.router)
 app.include_router(providers.router)
 app.include_router(recommendations.router)
 app.include_router(ai_search.router)
+app.include_router(openproject.router)
 
 
 @app.get("/", include_in_schema=False)

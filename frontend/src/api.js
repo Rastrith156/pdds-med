@@ -47,3 +47,13 @@ export function askAi(query) {
     body: JSON.stringify({ query }),
   });
 }
+
+/** GET /api/openproject/ — server-proxied project overview and work packages. */
+export function getOpenProjectOverview() {
+  return request("/api/openproject/");
+}
+
+/** GET /api/openproject/work-packages/{id} — server-proxied task details. */
+export function getOpenProjectWorkPackage(id) {
+  return request(`/api/openproject/work-packages/${encodeURIComponent(id)}`);
+}

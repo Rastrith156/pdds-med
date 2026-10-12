@@ -5,7 +5,9 @@ Values come from process environment and, optionally, a local ``.env`` file
 """
 
 from functools import lru_cache
+from urllib.parse import urlparse
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -43,6 +45,30 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_base_url: str = ""
+
+    # --- OpenProject (optional external integration) ---
+    openproject_url: str = ""
+    openproject_api_key: SecretStr = SecretStr("")
+    openproject_project_id: str = ""
+
+    @property
+    def openproject_configured(self) -> bool:
+        """Whether a safe OpenProject URL, API key, and numeric project id exist."""
+        try:
+            parsed = urlparse(self.openproject_url.strip())
+            parsed.port
+        except ValueError:
+            return False
+        return bool(
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname
+            and not parsed.username
+            and not parsed.password
+            and not parsed.query
+            and not parsed.fragment
+            and self.openproject_api_key.get_secret_value().strip()
+            and self.openproject_project_id.strip().isdigit()
+        )
 
     @property
     def cors_origin_list(self) -> list[str]:

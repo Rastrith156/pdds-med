@@ -168,6 +168,23 @@ see `docs/recommendation-algorithm.md`. Errors: **422**, **503**.
 - Ranking inside this endpoint is still fully deterministic (limit 5).
 - Errors: **422**, **503** (database down after a successful parse).
 
+## 7. OpenProject integration (optional)
+
+The backend proxies OpenProject REST API v3. Configure `OPENPROJECT_URL`,
+`OPENPROJECT_API_KEY`, and numeric `OPENPROJECT_PROJECT_ID` on the backend. The
+API key is used only for upstream HTTP Basic authentication (username `apikey`,
+password = token), and is never included in API responses. Requests do not
+follow redirects. When configuration is absent or invalid, the overview returns
+`configured: false` with setup instructions and no fabricated project data.
+
+- `GET /api/openproject/status` — whether required configuration is present.
+- `GET /api/openproject/` — configured project and up to 100 work packages.
+- `GET /api/openproject/work-packages/{id}` — current details for a package.
+
+Upstream failures return **502** with a sanitized message. The workspace URL is
+returned only after validating configuration; the frontend opens it as a normal
+external link instead of embedding it.
+
 ---
 
 ## Endpoint summary
@@ -180,3 +197,6 @@ see `docs/recommendation-algorithm.md`. Errors: **422**, **503**.
 | GET | `/api/providers/{id}` | Providers | Full record by id (404 if unknown) |
 | POST | `/api/recommendations` | Recommendations | Filter → deterministic weighted ranking |
 | POST | `/api/ai/search` | AI Search | Natural-language query → parse → filter → rank |
+| GET | `/api/openproject/status` | OpenProject | Check optional integration configuration |
+| GET | `/api/openproject/` | OpenProject | Project overview and live work packages |
+| GET | `/api/openproject/work-packages/{id}` | OpenProject | Work-package detail |

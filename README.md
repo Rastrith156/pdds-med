@@ -149,6 +149,18 @@ npm install
 npm run dev
 ```
 
+### Optional OpenProject integration
+
+The OpenProject page is available from the main navigation. To connect it,
+configure `OPENPROJECT_URL` (instance base URL), `OPENPROJECT_API_KEY` (an API
+token created in your OpenProject profile), and `OPENPROJECT_PROJECT_ID` (the
+numeric project ID) in the backend process environment or the root `.env` file.
+Copy `.env.example` for the complete list of settings, then restart the backend.
+The browser never receives the API token; the backend uses OpenProject REST API
+v3 with HTTP Basic authentication (`apikey` username and token password). The
+integration remains disconnected until all three values are valid. Details:
+[`docs/api-reference.md`](docs/api-reference.md#7-openproject-integration).
+
 **Run the tests** (from the repository root):
 
 ```powershell

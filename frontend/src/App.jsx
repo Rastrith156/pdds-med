@@ -2,6 +2,7 @@ import { Routes, Route, Link, NavLink } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Search from "./pages/Search.jsx";
 import ProviderDetails from "./pages/ProviderDetails.jsx";
+import OpenProject from "./pages/OpenProject.jsx";
 
 /** Canonical navigation disclaimer (shown on every page). */
 export const DISCLAIMER =
@@ -20,6 +21,9 @@ function Navbar() {
           </NavLink>
           <NavLink to="/search" className={({ isActive }) => (isActive ? "text-teal-700" : "text-slate-600 hover:text-teal-700")}>
             Search
+          </NavLink>
+          <NavLink to="/openproject" className={({ isActive }) => (isActive ? "text-teal-700" : "text-slate-600 hover:text-teal-700")}>
+            OpenProject
           </NavLink>
         </div>
       </nav>
@@ -46,6 +50,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
           <Route path="/providers/:id" element={<ProviderDetails />} />
+          <Route path="/openproject" element={<OpenProject />} />
         </Routes>
       </main>
       <Footer />
